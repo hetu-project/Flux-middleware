@@ -7,6 +7,15 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
     
+    # Twitter 采集服务配置
+    TWITTER_SERVER_IP: str = "54.179.155.13"
+    TWITTER_SERVER_PORT: int = 5005
+    
+    @property
+    def twitter_service_url(self) -> str:
+        """获取 Twitter 服务完整 URL"""
+        return f"http://{self.TWITTER_SERVER_IP}:{self.TWITTER_SERVER_PORT}"
+    
     # 数据库配置
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "postgres"
