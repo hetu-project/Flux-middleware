@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from app.api.v1.health import router as health_router
 from app.api.v1.subnet import router as subnet_router
 from app.api.v1.twitter import router as twitter_router
+from app.api.v1.task import router as task_router
 
 router = APIRouter()
 
@@ -13,3 +14,6 @@ router.include_router(subnet_router, prefix="/subnet")
 
 # 注册 Twitter 路由
 router.include_router(twitter_router, prefix="/twitter")
+
+# 注册任务路由
+router.include_router(task_router, prefix="/task")
