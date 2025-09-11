@@ -7,7 +7,7 @@ from app.core.config import get_settings
 settings = get_settings()
 
 engine = create_engine(
-    settings.get_database_url,
+    settings.DATABASE_URL,
     pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
