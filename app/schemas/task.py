@@ -1,10 +1,13 @@
 from pydantic import BaseModel, Field, HttpUrl
+from typing import Optional
 
 class TaskCreate(BaseModel):
     """创建任务的请求模型"""
-    address: str = Field(..., description="用户地址")
+    project_name: str = Field(..., description="项目名称")
+    project_description: Optional[str] = Field(None, description="项目描述")
+    project_icon: Optional[str] = Field(None, description="项目图标URL")
     task_type: str = Field(..., description="任务类型")
-    twitter_url: HttpUrl = Field(..., description="Twitter URL")
+    twitter_name: str = Field(..., description="Twitter 用户名")
 
 class TaskResponse(BaseModel):
     """任务创建响应"""

@@ -1,27 +1,67 @@
 from typing import Dict
-import uuid
+from sqlalchemy.orm import Session
 from app.schemas.task import TaskCreate
+from app.crud.project import ProjectCRUD
+from app.crud.task import TaskCRUD
+from fastapi import HTTPException
 
 class TaskService:
     """任务服务"""
     
     @staticmethod
-    async def create_task(task_data: TaskCreate) -> Dict[str, str | bool]:
+    async def create_task(db: Session, task_data: TaskCreate) -> Dict[str, bool | str]:
         """
-        创建任务（模拟外部API调用）
+        创建任务和项目
         
         Args:
+            db: 数据库会话
             task_data: 任务创建请求数据
             
         Returns:
-            Dict[str, str | bool]: 包含操作结果、消息和任务ID的字典
+            Dict[str, bool | str]: 包含操作结果和消息的字典
+            
+        Raises:
+            HTTPException: 当项目已存在时抛出
         """
-        # TODO: 实际实现中，这里会调用外部API
-        # 生成一个模拟的任务ID
-        task_id = str(uuid.uuid4())
-        
-        return {
-            "success": True,
-            "message": f"Successfully created task for {task_data.address}",
-            "task_id": task_id
-        }
+        try:
+            # 检查项目是否已存在
+            existing_project = ProjectCRUD.get_project_by_name(db, task_data.project_name)
+            if existing_project:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Project {task_data.project_name} already exists"
+                )
+            
+            # 创建项目
+            project = ProjectCRUD.create_project(
+                db=db,
+                name=task_data.project_name,
+                description=task_data.project_description,
+                icon=task_data.project_icon
+            )
+            
+            # 创建任务
+            task = TaskCRUD.create_task(
+                db=db,
+                project_id=project.id,
+                task_type=task_data.task_type,
+                twitter_name=task_data.twitter_name
+            )
+            
+            # 提交事务
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": f"Successfully created project {project.name} and associated task"
+            }
+            
+        except HTTPException as e:
+            db.rollback()
+            raise e
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create task: {str(e)}"
+            )
