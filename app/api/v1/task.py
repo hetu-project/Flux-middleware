@@ -28,9 +28,14 @@ async def create_task(
         result = await TaskService.create_task(db, task_data)
         return TaskResponse(**result)
     except HTTPException as e:
-        raise e
+        return TaskResponse(
+            success=False,
+            message=e.detail,
+            task_id=None
+        )
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create task: {str(e)}"
+        return TaskResponse(
+            success=False,
+            message=f"Failed to create task: {str(e)}",
+            task_id=None
         )

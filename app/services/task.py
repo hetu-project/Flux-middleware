@@ -48,6 +48,7 @@ class TaskService:
                 db=db,
                 project_id=project.id,
                 task_type=task_data.task_type,
+                twitter_name=task_data.twitter_name,
                 twitter_url=str(task_data.twitter_url)
             )
             
@@ -65,10 +66,15 @@ class TaskService:
             
         except HTTPException as e:
             db.rollback()
-            raise e
+            return {
+                "success": False,
+                "message": e.detail,
+                "task_id": None
+            }
         except Exception as e:
             db.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create task: {str(e)}"
-            )
+            return {
+                "success": False,
+                "message": f"Failed to create task: {str(e)}",
+                "task_id": None
+            }
