@@ -40,20 +40,27 @@ class TaskService:
                 icon=task_data.project_icon
             )
             
+            # 刷新会话以获取项目ID
+            db.flush()
+            
             # 创建任务
             task = TaskCRUD.create_task(
                 db=db,
                 project_id=project.id,
                 task_type=task_data.task_type,
-                twitter_name=task_data.twitter_name
+                twitter_url=str(task_data.twitter_url)
             )
             
             # 提交事务
             db.commit()
             
+            # 刷新会话以获取任务ID
+            db.refresh(task)
+            
             return {
                 "success": True,
-                "message": f"Successfully created project {project.name} and associated task"
+                "message": f"Successfully created project {project.name} and associated task",
+                "task_id": str(task.task_id)
             }
             
         except HTTPException as e:

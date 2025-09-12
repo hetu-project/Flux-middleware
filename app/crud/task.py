@@ -8,7 +8,7 @@ class TaskCRUD:
         db: Session,
         project_id: int,
         task_type: str,
-        twitter_name: str,
+        twitter_url: str,
         name: Optional[str] = None,
         description: Optional[str] = None,
     ) -> Task:
@@ -19,23 +19,20 @@ class TaskCRUD:
             db: 数据库会话
             project_id: 项目ID
             task_type: 任务类型
-            twitter_name: Twitter 用户名
+            twitter_url: Twitter URL
             name: 任务名称（可选）
             description: 任务描述（可选）
             
         Returns:
             Task: 创建的任务对象（未提交）
         """
-        # 构建 Twitter URL
-        twitter_url = f"https://twitter.com/{twitter_name}"
-        
-        # 如果没有提供任务名称，使用 Twitter 用户名
+        # 如果没有提供任务名称，使用 Twitter URL
         if not name:
-            name = f"Twitter Task for @{twitter_name}"
+            name = f"Twitter Task: {twitter_url}"
             
         db_task = Task(
             project_id=project_id,
-            name=name,
+            twitter_name=name,
             description=description,
             type=task_type,
             url=twitter_url
