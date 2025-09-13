@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 import httpx
 
-from app.schemas.twitter import TwitterInteractionResponse
+from app.schemas.twitter import TwitterInteractionResponse, SubnetTweetTaskRequest, SubnetTweetTaskResponse
 from app.services.twitter import TwitterService
 from app.core.config import get_settings
 
@@ -77,4 +77,35 @@ async def tweet_monitor(request: Request):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to manage tweet monitor task: {str(e)}"
+        )
+
+@router.post("/subnet_tweet_task", response_model=SubnetTweetTaskResponse)
+@router.put("/subnet_tweet_task", response_model=SubnetTweetTaskResponse)
+@router.delete("/subnet_tweet_task", response_model=SubnetTweetTaskResponse)
+async def subnet_tweet_task(
+    request: Request,
+    task_data: SubnetTweetTaskRequest
+) -> SubnetTweetTaskResponse:
+    """
+    处理子网推文任务
+    
+    Methods:
+        POST: 创建新的子网推文任务
+        PUT: 更新现有的子网推文任务
+        DELETE: 删除子网推文任务
+        
+    Request Body:
+        media_account: str - 媒体账号
+        tweet_id: str - 推文ID
+        update_frequency: str - 更新频率 (可选，默认为 "10 minutes")
+    """
+    try:
+        return await TwitterService.subnet_tweet_task(
+            method=request.method,
+            task_data=task_data
+        )
+    except Exception as e:
+        return SubnetTweetTaskResponse(
+            success=False,
+            message=f"Failed to process subnet tweet task: {str(e)}"
         )

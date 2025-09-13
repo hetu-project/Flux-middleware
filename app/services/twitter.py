@@ -4,7 +4,7 @@ import aiohttp
 from fastapi import HTTPException
 
 from app.core.config import get_settings
-from app.schemas.twitter import TwitterInteractionResponse
+from app.schemas.twitter import TwitterInteractionResponse, SubnetTweetTaskRequest, SubnetTweetTaskResponse
 
 settings = get_settings()
 
@@ -78,4 +78,72 @@ class TwitterService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Internal server error: {str(e)}"
+            )
+    
+    @staticmethod
+    async def subnet_tweet_task(
+        method: str,
+        task_data: SubnetTweetTaskRequest
+    ) -> SubnetTweetTaskResponse:
+        """
+        处理子网推文任务（创建、更新、删除）
+        
+        Args:
+            method: HTTP 方法 (POST, PUT, DELETE)
+            task_data: 任务数据
+            
+        Returns:
+            SubnetTweetTaskResponse: 任务操作响应
+            
+        Raises:
+            HTTPException: 当请求失败时抛出
+        """
+        # 构建请求 URL
+        url = f"{settings.twitter_service_url}/subnet_tweet_task"
+        
+        # 构建请求数据
+        request_data = {
+            "media_account": task_data.media_account,
+            "tweet_id": task_data.tweet_id
+        }
+        
+        if method in ["POST", "PUT"]:
+            request_data["update_frequency"] = task_data.update_frequency
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                if method == "DELETE":
+                    async with session.delete(url, json=request_data) as response:
+                        data = await response.json()
+                else:
+                    async with session.post(url, json=request_data) as response:
+                        data = await response.json()
+                
+                if response.status >= 400:
+                    return SubnetTweetTaskResponse(
+                        success=False,
+                        message=data.get("message", f"Request failed with status {response.status}")
+                    )
+                
+                # 根据原始响应的 status 字段判断成功与否
+                if data.get("status") == "success":
+                    return SubnetTweetTaskResponse(
+                        success=True,
+                        message=data.get("message", "Operation completed successfully")
+                    )
+                else:
+                    return SubnetTweetTaskResponse(
+                        success=False,
+                        message=data.get("message", "Operation failed")
+                    )
+                    
+        except aiohttp.ClientError as e:
+            return SubnetTweetTaskResponse(
+                success=False,
+                message=f"Failed to connect to Twitter service: {str(e)}"
+            )
+        except Exception as e:
+            return SubnetTweetTaskResponse(
+                success=False,
+                message=f"Internal server error: {str(e)}"
             )

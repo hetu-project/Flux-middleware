@@ -29,3 +29,14 @@ class TwitterInteractionResponse(BaseModel):
     username: Optional[str] = None
     pagination: PaginationInfo
     interactions: List[Interaction]
+
+class SubnetTweetTaskRequest(BaseModel):
+    """子网推文任务请求"""
+    media_account: str
+    tweet_id: str
+    update_frequency: Optional[str] = "10 minutes"
+
+class SubnetTweetTaskResponse(BaseModel):
+    """子网推文任务响应"""
+    success: bool
+    message: str
