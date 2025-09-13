@@ -34,7 +34,7 @@ class SubnetTweetTaskRequest(BaseModel):
     """子网推文任务请求"""
     media_account: str
     tweet_id: str
-    update_frequency: Optional[str] = "10 minutes"
+    update_frequency: Optional[str] = "6 hours"
 
 class SubnetTweetTaskResponse(BaseModel):
     """子网推文任务响应"""

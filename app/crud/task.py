@@ -11,6 +11,7 @@ class TaskCRUD:
         twitter_name: str,
         twitter_url: str,
         description: Optional[str] = None,
+        user_wallet: Optional[str] = None,
     ) -> Task:
         """
         创建任务但不提交
@@ -22,6 +23,7 @@ class TaskCRUD:
             twitter_name: Twitter 用户名
             twitter_url: Twitter URL
             description: 任务描述（可选）
+            user_wallet: 用户钱包地址（可选）
             
         Returns:
             Task: 创建的任务对象（未提交）
@@ -31,7 +33,8 @@ class TaskCRUD:
             twitter_name=twitter_name,
             description=description,
             type=task_type,
-            url=twitter_url
+            url=twitter_url,
+            user_wallet=user_wallet
         )
         db.add(db_task)
         return db_task

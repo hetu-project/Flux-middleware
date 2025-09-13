@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     DB_NAME: str = os.getenv("DB_NAME", "flux_middle")
     DB_USER: str = os.getenv("DB_USER", "litterpigger")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
+    FLUX_URL: str = os.getenv("FLUX_URL", "")
     
     # Twitter 采集服务配置
     TWITTER_SERVER_IP: str = os.getenv("TWITTER_SERVER_IP", "")

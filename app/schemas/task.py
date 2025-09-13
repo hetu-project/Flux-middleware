@@ -9,6 +9,7 @@ class TaskCreate(BaseModel):
     task_type: str = Field(..., description="任务类型")
     twitter_name: str = Field(..., description="Twitter 用户名")
     twitter_url: HttpUrl = Field(..., description="Twitter URL")
+    user_wallet: Optional[str] = Field(None, description="用户钱包地址")
 
 class TaskResponse(BaseModel):
     """任务创建响应"""

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
+from app.core.logger import logger
 from app.api.v1.api import router as api_v1_router
 
 settings = get_settings()
@@ -10,6 +11,8 @@ app = FastAPI(
     description="Hetu Middleware API",
     version="0.1.0",
 )
+
+logger.info("Starting Hetu Middleware API")
 
 # CORS设置
 app.add_middleware(

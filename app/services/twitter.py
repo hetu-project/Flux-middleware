@@ -99,7 +99,7 @@ class TwitterService:
             HTTPException: 当请求失败时抛出
         """
         # 构建请求 URL
-        url = f"{settings.twitter_service_url}/subnet_tweet_task"
+        url = f"{settings.twitter_service_url}/api/subnet_tweet_task"
         
         # 构建请求数据
         request_data = {
