@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from typing import List, Optional
 from datetime import datetime
 
@@ -40,3 +40,16 @@ class SubnetTweetTaskResponse(BaseModel):
     """子网推文任务响应"""
     success: bool
     message: str
+
+class RetweetCheckRequest(BaseModel):
+    """Retweet检测请求"""
+    media_account: str = Field(..., description="媒体账号")
+    x_id: str = Field(..., description="用户ID")
+    post_id: str = Field(..., description="帖子ID")
+    start_time: datetime = Field(..., description="开始时间 (ISO format with Z)")
+    end_time: datetime = Field(..., description="结束时间 (ISO format with Z)")
+
+class RetweetCheckResponse(BaseModel):
+    """Retweet检测响应"""
+    has_retweet: bool = Field(..., description="是否有retweet操作")
+    message: str = Field(..., description="响应消息")

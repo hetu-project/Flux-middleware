@@ -1,7 +1,7 @@
 from typing import Dict
 from sqlalchemy.orm import Session
 import re
-from app.schemas.task import TaskCreate
+from app.schemas.task import TaskCreate, TaskListResponse, TaskInfo, ProjectInfo
 from app.schemas.flux import FluxTaskCreateRequest
 from app.crud.project import ProjectCRUD
 from app.crud.task import TaskCRUD
@@ -32,7 +32,7 @@ class TaskService:
             existing_project = ProjectCRUD.get_project_by_name(db, task_data.project_name)
             if existing_project:
                 raise HTTPException(
-                    status_code=400,
+                    status_code=409,
                     detail=f"Project {task_data.project_name} already exists"
                 )
             
@@ -60,42 +60,42 @@ class TaskService:
             # 刷新会话以获取任务ID
             db.flush()
             db.refresh(task)
-            # 暂时注释掉 Twitter 服务调用逻辑
+            # 调用 Twitter 服务
             # 从 Twitter URL 中提取 tweet_id
             tweet_id = Utils.extract_tweet_id(str(task_data.twitter_url))
-            # 调用 Twitter 服务
-            # try:
-            #     from app.schemas.twitter import SubnetTweetTaskRequest
-            #     
-            #     # 创建任务请求数据
-            #     task_request = SubnetTweetTaskRequest(
-            #         media_account=task_data.twitter_name,
-            #         tweet_id=tweet_id,
-            #         update_frequency="6 hours"  
-            #     )
-            #     
-            #     # 调用 Twitter 服务并获取返回结果
-            #     twitter_response = await TwitterService.subnet_tweet_task(
-            #         method="POST",
-            #         task_data=task_request
-            #     )
-            #     
-            #     # 打印 Twitter 服务的返回结果
-            #     print(f"Twitter service response: {twitter_response}")
-            #     
-            #     # 检查 Twitter 服务是否成功
-            #     if not twitter_response.success:
-            #         raise HTTPException(
-            #             status_code=500,
-            #             detail=f"Twitter service failed: {twitter_response.message}"
-            #         )
-            # except Exception as e:
-            #     # 如果 Twitter 服务调用失败，回滚数据库操作
-            #     db.rollback()
-            #     raise HTTPException(
-            #         status_code=500,
-            #         detail=f"Failed to process Twitter task: {str(e)}"
-            #     )
+            
+            try:
+                from app.schemas.twitter import SubnetTweetTaskRequest
+                
+                # 创建任务请求数据
+                task_request = SubnetTweetTaskRequest(
+                    media_account=task_data.twitter_name,
+                    tweet_id=tweet_id,
+                    update_frequency="6 hours"  
+                )
+                
+                # 调用 Twitter 服务并获取返回结果
+                twitter_response = await TwitterService.subnet_tweet_task(
+                    method="POST",
+                    task_data=task_request
+                )
+                
+                # 打印 Twitter 服务的返回结果
+                print(f"Twitter service response: {twitter_response}")
+                
+                # 检查 Twitter 服务是否成功
+                if not twitter_response.success:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Twitter service failed: {twitter_response.message}"
+                    )
+            except Exception as e:
+                # 如果 Twitter 服务调用失败，回滚数据库操作
+                db.rollback()
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to process Twitter task: {str(e)}"
+                )
             
             # 调用 Flux 服务
             try:
@@ -107,7 +107,7 @@ class TaskService:
                     user_wallet=task_data.user_wallet or "",  # 如果没有提供钱包地址，使用空字符串
                     project_name=task_data.project_name,
                     project_icon=task_data.project_icon,
-                    description="",  # 传递空字符串
+                    description=task_data.project_description or "",  # 使用项目描述，如果没有则使用空字符串
                     twitter_username=task_data.twitter_name,
                     twitter_link=task_data.twitter_url,
                     tweet_id=tweet_id
@@ -115,7 +115,6 @@ class TaskService:
                 
                 # 调用 Flux 服务
                 flux_response = await FluxService.create_task(flux_request)
-                
                 if flux_response.success:
                     # Flux 服务成功，提交数据库事务
                     db.commit()
@@ -129,28 +128,23 @@ class TaskService:
                 else:
                     # Flux 服务失败，回滚数据库操作
                     db.rollback()
-                    return {
-                        "success": False,
-                        "message": f"Flux service failed: {flux_response.message}",
-                        "task_id": None
-                    }
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Flux service failed: {flux_response.message}"
+                    )
                     
             except Exception as e:
                 # Flux 服务调用异常，回滚数据库操作
                 db.rollback()
-                return {
-                    "success": False,
-                    "message": f"Flux service error: {str(e)}",
-                    "task_id": None
-                }
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Flux service error: {str(e)}"
+                )
             
         except HTTPException as e:
             db.rollback()
-            return {
-                "success": False,
-                "message": e.detail,
-                "task_id": None
-            }
+            # 重新抛出 HTTPException 以保持正确的状态码
+            raise e
         except Exception as e:
             db.rollback()
             return {
@@ -158,3 +152,70 @@ class TaskService:
                 "message": f"Failed to create task: {str(e)}",
                 "task_id": None
             }
+    
+    @staticmethod
+    def get_tasks_list(
+        db: Session,
+        limit: int = 10,
+        offset: int = 0
+    ) -> TaskListResponse:
+        """
+        获取所有任务列表（带分页）
+        
+        Args:
+            db: 数据库会话
+            limit: 每页数量
+            offset: 偏移量
+            
+        Returns:
+            TaskListResponse: 任务列表响应
+        """
+        try:
+            # 获取任务数据和总数
+            tasks, total_count = TaskCRUD.get_tasks_with_pagination(
+                db=db,
+                limit=limit,
+                offset=offset
+            )
+            
+            # 转换为响应格式
+            task_list = []
+            for task in tasks:
+                # 构建项目信息
+                project_info = ProjectInfo(
+                    id=task.project.id,
+                    name=task.project.name,
+                    description=task.project.description,
+                    icon=task.project.icon,
+                    created_time=task.project.created_time
+                )
+                
+                # 构建任务信息
+                task_info = TaskInfo(
+                    task_id=task.task_id,
+                    twitter_name=task.twitter_name,
+                    description=task.description,
+                    type=task.type,
+                    url=task.url,
+                    user_wallet=task.user_wallet,
+                    created_time=task.created_time,
+                    project=project_info
+                )
+                task_list.append(task_info)
+            
+            # 计算是否还有更多数据
+            has_more = (offset + limit) < total_count
+            
+            return TaskListResponse(
+                tasks=task_list,
+                total_count=total_count,
+                limit=limit,
+                offset=offset,
+                has_more=has_more
+            )
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get tasks list: {str(e)}"
+            )
