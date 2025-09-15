@@ -9,6 +9,7 @@ from app.services.twitter import TwitterService
 from app.services.flux import FluxService
 from fastapi import HTTPException
 from app.utils import Utils
+from app.core.logger import logger
 class TaskService:
     """任务服务"""
     
@@ -28,15 +29,19 @@ class TaskService:
             HTTPException: 当项目已存在时抛出
         """
         try:
+            logger.info(f"开始创建任务: project_name={task_data.project_name}, twitter_name={task_data.twitter_name}")
+            
             # 检查项目是否已存在
             existing_project = ProjectCRUD.get_project_by_name(db, task_data.project_name)
             if existing_project:
+                logger.warning(f"项目已存在: {task_data.project_name}")
                 raise HTTPException(
                     status_code=409,
                     detail=f"Project {task_data.project_name} already exists"
                 )
             
             # 创建项目
+            logger.info(f"创建项目: {task_data.project_name}")
             project = ProjectCRUD.create_project(
                 db=db,
                 name=task_data.project_name,
@@ -46,8 +51,10 @@ class TaskService:
             
             # 刷新会话以获取项目ID
             db.flush()
+            logger.info(f"项目创建成功: project_id={project.id}")
             
             # 创建任务
+            logger.info(f"创建任务: twitter_name={task_data.twitter_name}, task_type={task_data.task_type}")
             task = TaskCRUD.create_task(
                 db=db,
                 project_id=project.id,
@@ -60,9 +67,11 @@ class TaskService:
             # 刷新会话以获取任务ID
             db.flush()
             db.refresh(task)
+            logger.info(f"任务创建成功: task_id={task.task_id}")
             # 调用 Twitter 服务
             # 从 Twitter URL 中提取 tweet_id
             tweet_id = Utils.extract_tweet_id(str(task_data.twitter_url))
+            logger.info(f"提取 tweet_id: {tweet_id}")
             
             try:
                 from app.schemas.twitter import SubnetTweetTaskRequest
@@ -71,26 +80,29 @@ class TaskService:
                 task_request = SubnetTweetTaskRequest(
                     media_account=task_data.twitter_name,
                     tweet_id=tweet_id,
-                    update_frequency="6 hours"  
+                    update_frequency="10 minutes"  
                 )
                 
+                logger.info(f"调用 Twitter 服务: media_account={task_data.twitter_name}, tweet_id={tweet_id}")
                 # 调用 Twitter 服务并获取返回结果
                 twitter_response = await TwitterService.subnet_tweet_task(
                     method="POST",
                     task_data=task_request
                 )
                 
-                # 打印 Twitter 服务的返回结果
-                print(f"Twitter service response: {twitter_response}")
+                logger.info(f"Twitter 服务响应: success={twitter_response.success}, message={twitter_response.message}")
                 
                 # 检查 Twitter 服务是否成功
                 if not twitter_response.success:
+                    logger.error(f"Twitter 服务失败: {twitter_response.message}")
                     raise HTTPException(
                         status_code=500,
                         detail=f"Twitter service failed: {twitter_response.message}"
                     )
+                logger.info("Twitter 服务调用成功")
             except Exception as e:
                 # 如果 Twitter 服务调用失败，回滚数据库操作
+                logger.error(f"Twitter 服务调用异常: {str(e)}")
                 db.rollback()
                 raise HTTPException(
                     status_code=500,
@@ -110,14 +122,20 @@ class TaskService:
                     description=task_data.project_description or "",  # 使用项目描述，如果没有则使用空字符串
                     twitter_username=task_data.twitter_name,
                     twitter_link=task_data.twitter_url,
-                    tweet_id=tweet_id
+                    tweet_id=tweet_id,
+                    task_type=task_data.task_type
                 )
                 
+                logger.info(f"调用 Flux 服务: project_name={task_data.project_name}, user_wallet={task_data.user_wallet}")
                 # 调用 Flux 服务
                 flux_response = await FluxService.create_task(flux_request)
+                
+                logger.info(f"Flux 服务响应: success={flux_response.success}, message={flux_response.message}")
+                
                 if flux_response.success:
                     # Flux 服务成功，提交数据库事务
                     db.commit()
+                    logger.info(f"任务创建完全成功: task_id={task.task_id}, flux_task_id={flux_response.task_id}")
                     return {
                         "success": True,
                         "message": f"Successfully created project {project.name} and Flux task",
@@ -127,6 +145,7 @@ class TaskService:
                     }
                 else:
                     # Flux 服务失败，回滚数据库操作
+                    logger.error(f"Flux 服务失败: {flux_response.message}")
                     db.rollback()
                     raise HTTPException(
                         status_code=500,
@@ -135,6 +154,7 @@ class TaskService:
                     
             except Exception as e:
                 # Flux 服务调用异常，回滚数据库操作
+                logger.error(f"Flux 服务调用异常: {str(e)}")
                 db.rollback()
                 raise HTTPException(
                     status_code=500,
@@ -171,12 +191,14 @@ class TaskService:
             TaskListResponse: 任务列表响应
         """
         try:
+            logger.info(f"获取任务列表: limit={limit}, offset={offset}")
             # 获取任务数据和总数
             tasks, total_count = TaskCRUD.get_tasks_with_pagination(
                 db=db,
                 limit=limit,
                 offset=offset
             )
+            logger.info(f"查询到 {len(tasks)} 个任务，总数: {total_count}")
             
             # 转换为响应格式
             task_list = []
@@ -206,6 +228,7 @@ class TaskService:
             # 计算是否还有更多数据
             has_more = (offset + limit) < total_count
             
+            logger.info(f"任务列表返回: 返回 {len(task_list)} 个任务, has_more={has_more}")
             return TaskListResponse(
                 tasks=task_list,
                 total_count=total_count,
@@ -215,6 +238,7 @@ class TaskService:
             )
             
         except Exception as e:
+            logger.error(f"获取任务列表失败: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to get tasks list: {str(e)}"

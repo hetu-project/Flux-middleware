@@ -1,13 +1,14 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional, List
 from datetime import datetime
+from app.schemas.enums import TaskType
 
 class TaskCreate(BaseModel):
     """创建任务的请求模型"""
     project_name: str = Field(..., description="项目名称")
     project_description: Optional[str] = Field(None, description="项目描述")
     project_icon: Optional[str] = Field(None, description="项目图标URL")
-    task_type: str = Field(..., description="任务类型")
+    task_type: TaskType = Field(..., description="任务类型")
     twitter_name: str = Field(..., description="Twitter 用户名")
     twitter_url: HttpUrl = Field(..., description="Twitter URL")
     user_wallet: Optional[str] = Field(None, description="用户钱包地址")
@@ -31,7 +32,7 @@ class TaskInfo(BaseModel):
     task_id: int = Field(..., description="任务ID")
     twitter_name: str = Field(..., description="Twitter用户名")
     description: Optional[str] = Field(None, description="任务描述")
-    type: str = Field(..., description="任务类型")
+    type: TaskType = Field(..., description="任务类型")
     url: str = Field(..., description="任务URL")
     user_wallet: Optional[str] = Field(None, description="用户钱包地址")
     created_time: datetime = Field(..., description="创建时间")

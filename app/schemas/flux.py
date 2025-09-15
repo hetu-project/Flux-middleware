@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
-
+from app.schemas.enums import TaskType
 class FluxTaskCreateRequest(BaseModel):
     """Flux 任务创建请求"""
     user_wallet: str = Field(..., description="用户钱包地址")
@@ -10,6 +10,7 @@ class FluxTaskCreateRequest(BaseModel):
     twitter_username: str = Field(..., description="Twitter用户名")
     twitter_link: HttpUrl = Field(..., description="Twitter链接")
     tweet_id: str = Field(..., description="推文ID")
+    task_type: TaskType = Field(..., description="任务类型")
 
 class FluxTaskCreateResponse(BaseModel):
     """Flux 任务创建响应"""

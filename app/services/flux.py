@@ -34,7 +34,8 @@ class FluxService:
             "description": task_data.description,
             "twitter_username": task_data.twitter_username,
             "twitter_link": str(task_data.twitter_link),
-            "tweet_id": task_data.tweet_id
+            "tweet_id": task_data.tweet_id,
+            "task_type": task_data.task_type.value
         }
         
         # 添加可选字段

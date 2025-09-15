@@ -8,7 +8,7 @@ class Task(Base):
 
     task_id = Column(Integer, primary_key=True, autoincrement=True)
     twitter_name = Column(String(100), nullable=False)
-    description = Column(Text)
+    description = Column(Text,nullable=False)
     type = Column(String(50), nullable=False)  # 任务类型
     url = Column(String(255), nullable=False)  # 可能是 Twitter URL 或其他 URL
     user_wallet = Column(String(100))  # 用户钱包地址

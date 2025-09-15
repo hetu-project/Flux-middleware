@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from app.core.config import get_settings
 from app.schemas.twitter import TwitterInteractionResponse, SubnetTweetTaskRequest, SubnetTweetTaskResponse
+from app.core.logger import logger
 
 settings = get_settings()
 
@@ -92,13 +93,12 @@ class TwitterService:
             
         try:
             # 添加调试信息
-            print(f"Request URL: {url}")
-            print(f"Request params: {params}")
+            logger.info(f"Twitter 服务请求: URL={url}, params={params}")
             
             # 使用 aiohttp.ClientSession 的上下文管理器
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, params=params) as response:
-                    print(f"Response status: {response.status}")
+                    logger.info(f"Twitter 服务响应状态: {response.status}")
                     
                     if response.status >= 400:
                         # 尝试获取错误响应内容
@@ -108,7 +108,7 @@ class TwitterService:
                         except:
                             error_message = f"Twitter service returned error: {response.status}"
                         
-                        print(f"Error response: {error_message}")
+                        logger.error(f"Twitter 服务错误: {error_message}")
                         raise HTTPException(
                             status_code=response.status,
                             detail=f"Twitter service error: {error_message}"
@@ -116,6 +116,7 @@ class TwitterService:
                     
                     # 解析响应数据
                     data = await response.json()
+                    logger.info(f"Twitter 服务请求成功: 返回 {len(data.get('interactions', []))} 条互动数据")
                     return TwitterInteractionResponse(**data)
                     
         except aiohttp.ClientError as e:
@@ -225,6 +226,7 @@ class TwitterService:
         per_page = 100  # 每页获取更多数据以提高效率
         
         try:
+            logger.info(f"开始检测 retweet: media_account={media_account}, x_id={x_id}, post_id={post_id}")
             while True:
                 # 调用现有的get_interactions服务获取数据
                 response = await TwitterService.get_interactions(
@@ -236,27 +238,34 @@ class TwitterService:
                     end_time=end_time
                 )
                 
+                logger.info(f"第 {page} 页查询到 {len(response.interactions)} 条互动数据")
+                
                 # 检查当前页的interactions中是否有匹配的retweet操作
                 for interaction in response.interactions:
                     # 检查是否是retweet操作且post_id匹配
                     if (interaction.interaction_type.lower() == "retweet" and 
                         interaction.post_id == post_id):
+                        logger.info(f"找到匹配的 retweet 操作: interaction_id={interaction.interaction_id}")
                         return True
                 
                 # 如果没有找到retweet操作，检查是否还有下一页
                 if not response.pagination.has_next:
+                    logger.info("已查询完所有页面，未找到匹配的 retweet 操作")
                     break
                     
                 page += 1
                 
             # 遍历完所有页面都没有找到retweet操作
+            logger.info("retweet 检测完成: 未找到匹配操作")
             return False
             
         except HTTPException as e:
             # 如果是HTTP异常，重新抛出
+            logger.error(f"retweet 检测 HTTP 异常: {e.detail}")
             raise e
         except Exception as e:
             # 其他异常，抛出HTTP异常
+            logger.error(f"retweet 检测异常: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to check user retweet: {str(e)}"
